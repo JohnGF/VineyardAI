@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#722F37">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Adega Fácil - Controlo de Vindima</title>
+  
+  <!-- Web Manifest for PWA installation -->
+  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Adega%20F%C3%A1cil%22%2C%22short_name%22%3A%22Adega%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23FDFBF7%22%2C%22theme_color%22%3A%22%23722F37%22%7D">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            wine: {
+              700: '#722F37',
+              800: '#581F26',
+              900: '#3D1318',
+            },
+            cellar: {
+              bg: '#F9F6F0',
+              card: '#FFFFFF',
+              border: '#E6DFD5'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    input, select, button {
+      min-height: 48px;
+    }
+  </style>
+</head>
+<body class="bg-cellar-bg text-stone-900 font-sans antialiased pb-28">
+
+  <!-- Header -->
+  <header class="bg-wine-800 text-white px-4 py-4 sticky top-0 z-30 shadow-md flex justify-between items-center">
+    <div>
+      <h1 class="text-xl font-bold tracking-wide flex items-center gap-2">
+        🍇 <span id="app-title">Adega Fácil</span>
+      </h1>
+      <p id="app-subtitle" class="text-xs text-rose-200">Controlo de Fermentação & Prensagem</p>
+    </div>
+    <button onclick="toggleLang()" class="px-3 py-1.5 rounded-lg bg-wine-900/60 border border-rose-300/30 text-xs font-bold uppercase tracking-wider text-rose-100 active:scale-95 transition">
+      <span id="lang-btn">EN</span>
+    </button>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-md mx-auto p-4 space-y-5">
+
+    <!-- Active Batch Selector Card -->
+    <section class="bg-cellar-card rounded-2xl p-4 shadow-sm border border-cellar-border">
+      <div class="flex justify-between items-center mb-3">
+        <label for="batch-select" class="text-xs font-bold uppercase tracking-wider text-stone-500" data-i18n="select_batch">Lote / Vindima Ativa</label>
+        <button onclick="openNewBatchModal()" class="text-xs font-semibold text-wine-700 hover:text-wine-800 flex items-center gap-1">
+          + <span data-i18n="new_batch">Nova Cuba</span>
+        </button>
+      </div>
+      <select id="batch-select" onchange="switchBatch(this.value)" class="w-full text-base font-semibold bg-stone-50 border border-stone-300 rounded-xl px-3 py-2.5 text-stone-800 focus:ring-2 focus:ring-wine-700 outline-none">
+        <!-- Batches populated by JS -->
+      </select>
+    </section>
+
+    <!-- Tab 1: Monitor / Today's Action (Active Tab) -->
+    <div id="tab-monitor" class="space-y-5">
+      
+      <!-- Operational Action Alert -->
+      <section id="action-box" class="rounded-2xl p-5 border shadow-sm transition-all">
+        <!-- Injected via JS based on current density -->
+      </section>
+
+      <!-- Key Figures Grid -->
+      <section class="grid grid-cols-2 gap-3">
+        <div class="bg-cellar-card rounded-2xl p-4 border border-cellar-border shadow-sm text-center">
+          <span class="text-xs font-bold text-stone-500 uppercase tracking-wide" data-i18n="last_sg">Última Densidade</span>
+          <div id="stat-sg" class="text-3xl font-black text-stone-800 mt-1">--</div>
+          <span id="stat-sg-date" class="text-[11px] text-stone-400">Sem registos</span>
+        </div>
+        <div class="bg-cellar-card rounded-2xl p-4 border border-cellar-border shadow-sm text-center">
+          <span class="text-xs font-bold text-stone-500 uppercase tracking-wide" data-i18n="est_abv">Álcool Estimado</span>
+          <div id="stat-abv" class="text-3xl font-black text-wine-700 mt-1">--%</div>
+          <span id="stat-abv-target" class="text-[11px] text-stone-400">Potencial inicial</span>
+        </div>
+      </section>
+
+      <!-- Today's Density Measurement Form -->
+      <section class="bg-cellar-card rounded-2xl p-5 border border-cellar-border shadow-sm">
+        <h2 class="text-lg font-bold text-stone-900 mb-1" data-i18n="log_title">Registar Medição de Hoje</h2>
+        <p class="text-xs text-stone-500 mb-4" data-i18n="log_desc">Insira a leitura do densímetro para atualizar o diagnóstico.</p>
+
+        <form id="form-log" onsubmit="handleNewLog(event)" class="space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="raw_sg">Densidade Lida</label>
+              <input type="number" step="0.001" min="0.980" max="1.150" id="input-sg" required placeholder="Ex: 1.045" class="w-full text-xl font-bold bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-center text-stone-800 focus:ring-2 focus:ring-wine-700 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="must_temp">Temp. Mosto (°C)</label>
+              <input type="number" step="0.5" id="input-temp" value="20" required class="w-full text-xl font-bold bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-center text-stone-800 focus:ring-2 focus:ring-wine-700 outline-none">
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 pt-1">
+            <input type="checkbox" id="check-plunge" class="w-6 h-6 text-wine-700 rounded border-stone-300 focus:ring-wine-700">
+            <label for="check-plunge" class="text-sm font-semibold text-stone-700" data-i18n="punched_down">Manta rebaixada / Chapéu pisado hoje</label>
+          </div>
+
+          <button type="submit" class="w-full bg-wine-700 hover:bg-wine-800 text-white font-bold py-3.5 px-4 rounded-xl shadow active:scale-[0.99] transition text-base">
+            <span data-i18n="save_reading">Gravar Leitura</span>
+          </button>
+        </form>
+      </section>
+
+      <!-- History of Logged Readings -->
+      <section class="bg-cellar-card rounded-2xl p-5 border border-cellar-border shadow-sm">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-stone-500 mb-3" data-i18n="history_title">Histórico de Fermentação</h2>
+        <div id="log-list" class="divide-y divide-stone-100 max-h-60 overflow-y-auto">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+    </div>
+
+    <!-- Tab 2: Sulfites & Chaptalization (Calculadora) -->
+    <div id="tab-calculator" class="space-y-5 hidden">
+      
+      <!-- Sulfite (SO2) Dosage -->
+      <section class="bg-cellar-card rounded-2xl p-5 border border-cellar-border shadow-sm">
+        <h2 class="text-lg font-bold text-stone-900 mb-1" data-i18n="so2_calc_title">Correção de Sulfitos (Metabissulfito)</h2>
+        <p class="text-xs text-stone-500 mb-4" data-i18n="so2_calc_desc">Calcula a quantidade de metabissulfito de potássio (g) para proteger o mosto.</p>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="target_ppm">Dose de SO₂ Desejada (ppm ou mg/L)</label>
+            <select id="calc-so2-target" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-800 font-medium">
+              <option value="35">35 ppm - Uvas sãs / Mistura Palhete (Recomendado)</option>
+              <option value="50">50 ppm - Uvas muito maduras ou com podridão ligeira</option>
+              <option value="25">25 ppm - Trasfega após fermentação</option>
+            </select>
+          </div>
+
+          <div class="bg-rose-50 border border-rose-200 rounded-xl p-4 text-center">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-800" data-i18n="so2_result_label">Quantidade a Adicionar:</span>
+            <div id="so2-result" class="text-2xl font-black text-rose-900 mt-1">-- g</div>
+            <p id="so2-campden-eq" class="text-xs text-rose-700 mt-0.5">ou ~0 pastilhas Campden</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sugar Chaptalization -->
+      <section class="bg-cellar-card rounded-2xl p-5 border border-cellar-border shadow-sm">
+        <h2 class="text-lg font-bold text-stone-900 mb-1" data-i18n="sugar_calc_title">Correção de Grau (Açúcar)</h2>
+        <p class="text-xs text-stone-500 mb-3" data-i18n="sugar_calc_desc">Use caso as uvas tenham entrado com grau muito baixo (&lt; 10% provável).</p>
+        
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="curr_brix">Grau Atual (°Brix)</label>
+            <input type="number" id="calc-brix-curr" step="0.5" value="18" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-center font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="target_brix">Grau Alvo (°Brix)</label>
+            <input type="number" id="calc-brix-target" step="0.5" value="22" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-center font-bold">
+          </div>
+        </div>
+
+        <button onclick="calculateSugar()" class="w-full bg-stone-800 text-white font-bold py-2.5 rounded-xl text-sm">
+          <span data-i18n="calc_btn">Calcular Açúcar Necessário</span>
+        </button>
+
+        <div id="sugar-result-box" class="mt-3 hidden bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+          <span class="text-xs font-bold text-amber-800 uppercase" data-i18n="sugar_needed">Açúcar a dissolver em mosto morno:</span>
+          <div id="sugar-result" class="text-xl font-black text-amber-900">-- kg</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Tab 3: Vintage Retrospective & Memory (Histórico Anual) -->
+    <div id="tab-vintages" class="space-y-5 hidden">
+      <section class="bg-cellar-card rounded-2xl p-5 border border-cellar-border shadow-sm">
+        <h2 class="text-lg font-bold text-stone-900 mb-1" data-i18n="archive_title">Caderno de Memória da Adega</h2>
+        <p class="text-xs text-stone-500 mb-4" data-i18n="archive_desc">Avalie a qualidade do vinho pronto para comparar o que correu bem nos anos anteriores.</p>
+
+        <form id="form-retro" onsubmit="handleSaveRetro(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="review_score">Nota Global do Vinho (1 a 5)</label>
+            <select id="retro-score" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 font-bold">
+              <option value="5">⭐⭐⭐⭐⭐ Excecional / No Ponto</option>
+              <option value="4">⭐⭐⭐⭐ Muito Bom</option>
+              <option value="3">⭐⭐⭐ Razoável / Bebe-se bem</option>
+              <option value="2">⭐⭐ Áspero / Demasiado adstringente</option>
+              <option value="1">⭐ Desequilibrado / Falhas</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="review_tannin">Taninos / Boca</label>
+              <select id="retro-tannin" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-2 py-2 text-xs">
+                <option value="equilibrado" data-i18n="opt_tannin_balanced">Redondo / Equilibrado</option>
+                <option value="adstringente" data-i18n="opt_tannin_harsh">Muito Áspero (Skins too long)</option>
+                <option value="leve" data-i18n="opt_tannin_light">Muito Leve / Sem Corpo</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="review_acid">Acidez / Frescura</label>
+              <select id="retro-acid" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-2 py-2 text-xs">
+                <option value="fresco" data-i18n="opt_acid_crisp">Fresco / Frutado</option>
+                <option value="chato" data-i18n="opt_acid_flat">Chato / Pouca Frescura</option>
+                <option value="azedo" data-i18n="opt_acid_sour">Demasiado Ácido</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="review_notes">O que fazer igual ou diferente no próximo ano?</label>
+            <textarea id="retro-notes" rows="3" placeholder="Ex: Prensámos ao 3º dia a 1.035 e ficou leve e aromático. Repetir esta prensagem antecipada." class="w-full bg-stone-50 border border-stone-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-wine-700 outline-none"></textarea>
+          </div>
+
+          <button type="submit" class="w-full bg-stone-800 hover:bg-stone-900 text-white font-bold py-3 rounded-xl shadow text-sm">
+            <span data-i18n="save_retro">Guardar Memória do Lote</span>
+          </button>
+        </form>
+      </section>
+
+      <!-- Multi-Year Comparison Cards -->
+      <section class="space-y-3">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-stone-500" data-i18n="past_vintages">Vindimas Gravadas</h3>
+        <div id="vintages-list" class="space-y-3">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 px-6 py-2 z-40 flex justify-around shadow-lg max-w-md mx-auto">
+    <button onclick="changeTab('monitor')" id="nav-monitor" class="flex flex-col items-center text-wine-700 font-bold py-1">
+      <span class="text-xl">🛢️</span>
+      <span class="text-[11px] mt-0.5" data-i18n="nav_monitor">Controlo</span>
+    </button>
+    <button onclick="changeTab('calculator')" id="nav-calculator" class="flex flex-col items-center text-stone-400 hover:text-stone-700 font-medium py-1">
+      <span class="text-xl">🧪</span>
+      <span class="text-[11px] mt-0.5" data-i18n="nav_calc">Cálculos</span>
+    </button>
+    <button onclick="changeTab('vintages')" id="nav-vintages" class="flex flex-col items-center text-stone-400 hover:text-stone-700 font-medium py-1">
+      <span class="text-xl">📜</span>
+      <span class="text-[11px] mt-0.5" data-i18n="nav_vintages">Memória</span>
+    </button>
+  </nav>
+
+  <!-- Modal: New Batch -->
+  <div id="modal-batch" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+      <h2 class="text-lg font-bold text-stone-900" data-i18n="modal_new_title">Nova Cuba / Vindima</h2>
+      
+      <form onsubmit="handleCreateBatch(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="batch_name">Nome / Identificação</label>
+          <input type="text" id="new-batch-name" required placeholder="Ex: Cuba Grande 2026 (Mistura)" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 font-medium">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="batch_style">Estilo Pretendido</label>
+          <select id="new-batch-style" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 font-medium">
+            <option value="palhete" data-i18n="style_palhete">Palhete Tradicional (Prensagem cedo 2-4 dias)</option>
+            <option value="tinto" data-i18n="style_tinto">Tinto de Curtimenta (Até secar na casca)</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="batch_volume">Volume Mosto (L)</label>
+            <input type="number" id="new-batch-vol" value="100" required class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 font-bold text-center">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="batch_initial_sg">Densidade Inicial</label>
+            <input type="number" step="0.001" id="new-batch-sg" value="1.090" required class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 font-bold text-center">
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeNewBatchModal()" class="w-1/2 py-2.5 rounded-xl border border-stone-300 font-bold text-stone-600 text-sm" data-i18n="cancel">Cancelar</button>
+          <button type="submit" class="w-1/2 py-2.5 rounded-xl bg-wine-700 hover:bg-wine-800 font-bold text-white text-sm" data-i18n="confirm">Criar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    // I18N DICTIONARY: Defaults to pt-PT, English secondary
+    const i18n = {
+      'pt-PT': {
+        select_batch: 'Lote / Vindima Ativa',
+        new_batch: 'Nova Cuba',
+        last_sg: 'Última Densidade',
+        est_abv: 'Álcool Estimado',
+        log_title: 'Registar Medição de Hoje',
+        log_desc: 'Insira a leitura do densímetro para atualizar o diagnóstico.',
+        raw_sg: 'Densidade Lida',
+        must_temp: 'Temp. Mosto (°C)',
+        punched_down: 'Manta rebaixada / Chapéu pisado hoje',
+        save_reading: 'Gravar Leitura',
+        history_title: 'Histórico de Fermentação',
+        so2_calc_title: 'Correção de Sulfitos (Metabissulfito)',
+        so2_calc_desc: 'Calcula a quantidade de metabissulfito de potássio (g) para proteger o mosto.',
+        target_ppm: 'Dose de SO₂ Desejada (ppm ou mg/L)',
+        so2_result_label: 'Quantidade a Adicionar:',
+        sugar_calc_title: 'Correção de Grau (Açúcar)',
+        sugar_calc_desc: 'Use caso as uvas tenham entrado com grau muito baixo (< 10% provável).',
+        curr_brix: 'Grau Atual (°Brix)',
+        target_brix: 'Grau Alvo (°Brix)',
+        calc_btn: 'Calcular Açúcar Necessário',
+        sugar_needed: 'Açúcar a dissolver em mosto morno:',
+        archive_title: 'Caderno de Memória da Adega',
+        archive_desc: 'Avalie a qualidade do vinho pronto para comparar o que correu bem nos anos anteriores.',
+        review_score: 'Nota Global do Vinho (1 a 5)',
+        review_tannin: 'Taninos / Boca',
+        review_acid: 'Acidez / Frescura',
+        opt_tannin_balanced: 'Redondo / Equilibrado',
+        opt_tannin_harsh: 'Muito Áspero (Casca tempo a mais)',
+        opt_tannin_light: 'Muito Leve / Sem Corpo',
+        opt_acid_crisp: 'Fresco / Frutado',
+        opt_acid_flat: 'Chato / Pouca Frescura',
+        opt_acid_sour: 'Demasiado Ácido',
+        review_notes: 'O que fazer igual ou diferente no próximo ano?',
+        save_retro: 'Guardar Memória do Lote',
+        past_vintages: 'Vindimas Gravadas',
+        nav_monitor: 'Controlo',
+        nav_calc: 'Cálculos',
+        nav_vintages: 'Memória',
+        modal_new_title: 'Nova Cuba / Vindima',
+        batch_name: 'Nome / Identificação',
+        batch_style: 'Estilo Pretendido',
+        style_palhete: 'Palhete Tradicional (Prensagem cedo 2-4 dias)',
+        style_tinto: 'Tinto de Curtimenta (Até secar na casca)',
+        batch_volume: 'Volume Mosto (L)',
+        batch_initial_sg: 'Densidade Inicial',
+        cancel: 'Cancelar',
+        confirm: 'Criar',
+        action_ready_press_title: '⚠️ ALTURA DE PRENSAR!',
+        action_ready_press_palhete: 'A densidade baixou para a janela de ouro do Palhete. Separe o líquido das cascas e transfira para garrafões ou cubas fechadas com batoque/vedante de água.',
+        action_active_title: '🔥 FERMENTAÇÃO MUITO ATIVA',
+        action_active_desc: 'Rebaixe a manta de cascas 2 a 3 vezes por dia para evitar vinagre e oxidação.',
+        action_dry_title: '✅ FERMENTAÇÃO TERMINADA (SECO)',
+        action_dry_desc: 'O açúcar terminou. Deixe repousar 2 a 3 semanas para assentar o rolhão (borras) e faça a primeira trasfega limpa com sulfitos.'
+      },
+      'en': {
+        select_batch: 'Active Batch / Vintage',
+        new_batch: 'New Tub/Tank',
+        last_sg: 'Latest Gravity',
+        est_abv: 'Estimated ABV',
+        log_title: 'Log Today\'s Measurement',
+        log_desc: 'Enter hydrometer reading to refresh operational actions.',
+        raw_sg: 'Raw Gravity (SG)',
+        must_temp: 'Must Temp (°C)',
+        punched_down: 'Cap punched down today',
+        save_reading: 'Save Reading',
+        history_title: 'Fermentation History',
+        so2_calc_title: 'Sulfite Correction (Metabisulfite)',
+        so2_calc_desc: 'Calculates Potassium Metabisulfite (KMBS) powder dosage (g).',
+        target_ppm: 'Target SO₂ Dose (ppm or mg/L)',
+        so2_result_label: 'Amount to Add:',
+        sugar_calc_title: 'Chaptalization (Sugar Addition)',
+        sugar_calc_desc: 'Use only if grapes arrived underripe (< 10% potential ABV).',
+        curr_brix: 'Current (°Brix)',
+        target_brix: 'Target (°Brix)',
+        calc_btn: 'Calculate Required Sugar',
+        sugar_needed: 'Sugar to dissolve in warm must:',
+        archive_title: 'Cellar Retrospective Logbook',
+        archive_desc: 'Score and evaluate finished wine to guide decisions next year.',
+        review_score: 'Overall Rating (1 to 5)',
+        review_tannin: 'Tannins / Mouthfeel',
+        review_acid: 'Acidity / Freshness',
+        opt_tannin_balanced: 'Balanced / Smooth',
+        opt_tannin_harsh: 'Harsh / Astringent (Macerated too long)',
+        opt_tannin_light: 'Thin / Lacks Body',
+        opt_acid_crisp: 'Crisp / Fresh',
+        opt_acid_flat: 'Flat / Low Acid',
+        opt_acid_sour: 'Sharp / Too Acidic',
+        review_notes: 'What to replicate or change next vintage?',
+        save_retro: 'Save Vintage Notes',
+        past_vintages: 'Archived Vintages',
+        nav_monitor: 'Monitor',
+        nav_calc: 'Calculators',
+        nav_vintages: 'Year Log',
+        modal_new_title: 'New Batch / Vintage',
+        batch_name: 'Name / Identification',
+        batch_style: 'Target Style',
+        style_palhete: 'Traditional Palhete (Press off early 2-4 days)',
+        style_tinto: 'Red Maceration (Ferment dry on skins)',
+        batch_volume: 'Must Volume (L)',
+        batch_initial_sg: 'Initial Gravity',
+        cancel: 'Cancel',
+        confirm: 'Create',
+        action_ready_press_title: '⚠️ TIME TO PRESS SOLIDS!',
+        action_ready_press_palhete: 'Gravity has reached the target window for Palhete. Press liquid off grape skins now and finish in closed carboy under airlock.',
+        action_active_title: '🔥 HIGH FERMENTATION ACTIVITY',
+        action_active_desc: 'Punch down floating skins 2-3 times daily to prevent vinegar bacteria and surface drying.',
+        action_dry_title: '✅ FERMENTATION COMPLETE (DRY)',
+        action_dry_desc: 'Sugars are depleted. Let gross lees settle for 2-3 weeks, then perform first clean racking with protective sulfites.'
+      }
+    };
+
+    let currentLang = 'pt-PT';
+
+    // Core Data Schema in LocalStorage
+    const STORAGE_KEY = 'adega_facil_batches_v1';
+    let batches = [];
+    let currentBatchId = null;
+
+    function initApp() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try { batches = JSON.parse(saved); } catch(e) { batches = []; }
+      }
+
+      if (!batches || batches.length === 0) {
+        // Seed default 2026 Palhete harvest
+        const defaultBatch = {
+          id: 'batch-' + Date.now(),
+          name: 'Vindima 2026 - Mistura Palhete',
+          year: 2026,
+          volumeLiters: 80,
+          initialSG: 1.092,
+          style: 'palhete',
+          createdAt: new Date().toISOString(),
+          logs: [
+            { date: new Date().toLocaleDateString(currentLang), sg: 1.092, temp: 21, punched: true }
+          ],
+          review: null
+        };
+        batches = [defaultBatch];
+        saveBatches();
+      }
+
+      currentBatchId = batches[0].id;
+      applyTranslations();
+      renderBatchSelect();
+      updateDashboard();
+      calculateSO2();
+    }
+
+    function saveBatches() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(batches));
+    }
+
+    function getActiveBatch() {
+      return batches.find(b => b.id === currentBatchId) || batches[0];
+    }
+
+    // Mathematical calculations
+    function calculateCorrectedSG(rawSG, tempC) {
+      const deltaT = tempC - 20;
+      return rawSG + (1.31e-4 * deltaT) + (2.45e-5 * Math.pow(deltaT, 2));
+    }
+
+    function calculateABV(initialSG, currentSG) {
+      if (currentSG >= initialSG) return 0.0;
+      return ((initialSG - currentSG) * 131.25).toFixed(1);
+    }
+
+    // UI Updates
+    function updateDashboard() {
+      const batch = getActiveBatch();
+      if (!batch) return;
+
+      const latestLog = batch.logs && batch.logs.length > 0 ? batch.logs[batch.logs.length - 1] : null;
+      const currentSG = latestLog ? latestLog.sg : batch.initialSG;
+
+      // Stats
+      document.getElementById('stat-sg').innerText = currentSG.toFixed(3);
+      if (latestLog) {
+        document.getElementById('stat-sg-date').innerText = latestLog.date;
+      }
+      
+      const abv = calculateABV(batch.initialSG, currentSG);
+      document.getElementById('stat-abv').innerText = abv + '%';
+      const potentialTotal = ((batch.initialSG - 0.994) * 131.25).toFixed(1);
+      document.getElementById('stat-abv-target').innerText = `Alvo final: ~${potentialTotal}%`;
+
+      // Cellar Logic Action Decision
+      renderCellarAction(batch, currentSG);
+
+      // Render Logs
+      renderLogHistory(batch);
+
+      // Render Archival/Vintages tab
+      renderVintagesList();
+    }
+
+    function renderCellarAction(batch, sg) {
+      const box = document.getElementById('action-box');
+      const t = i18n[currentLang];
+
+      if (batch.style === 'palhete' && sg <= 1.050 && sg >= 1.020) {
+        // Critical Palhete Pressing Window
+        box.className = 'rounded-2xl p-5 border shadow-sm bg-rose-600 text-white border-rose-700 animate-pulse';
+        box.innerHTML = `
+          <div class="flex items-start gap-3">
+            <span class="text-3xl">🧺</span>
+            <div>
+              <h3 class="font-black text-base tracking-wide">${t.action_ready_press_title}</h3>
+              <p class="text-xs text-rose-100 mt-1 leading-relaxed">${t.action_ready_press_palhete}</p>
+            </div>
+          </div>
+        `;
+      } else if (sg > 1.010) {
+        // Active Fermentation
+        box.className = 'rounded-2xl p-5 border shadow-sm bg-amber-500/10 border-amber-500/30 text-stone-900';
+        box.innerHTML = `
+          <div class="flex items-start gap-3">
+            <span class="text-3xl">🫧</span>
+            <div>
+              <h3 class="font-bold text-amber-900 text-sm tracking-wide">${t.action_active_title}</h3>
+              <p class="text-xs text-stone-700 mt-1 leading-relaxed">${t.action_active_desc}</p>
+            </div>
+          </div>
+        `;
+      } else {
+        // Complete / Dry
+        box.className = 'rounded-2xl p-5 border shadow-sm bg-emerald-500/10 border-emerald-500/30 text-stone-900';
+        box.innerHTML = `
+          <div class="flex items-start gap-3">
+            <span class="text-3xl">🍾</span>
+            <div>
+              <h3 class="font-bold text-emerald-900 text-sm tracking-wide">${t.action_dry_title}</h3>
+              <p class="text-xs text-stone-700 mt-1 leading-relaxed">${t.action_dry_desc}</p>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function renderLogHistory(batch) {
+      const container = document.getElementById('log-list');
+      if (!batch.logs || batch.logs.length === 0) {
+        container.innerHTML = `<p class="text-xs text-stone-400 py-3 text-center">Sem medições registadas.</p>`;
+        return;
+      }
+
+      container.innerHTML = [...batch.logs].reverse().map(l => `
+        <div class="py-2.5 flex justify-between items-center text-sm">
+          <div>
+            <div class="font-bold text-stone-800">${l.sg.toFixed(3)} <span class="text-xs font-normal text-stone-500">(${l.temp}°C)</span></div>
+            <div class="text-[11px] text-stone-400">${l.date}</div>
+          </div>
+          <div>
+            ${l.punched ? '<span class="text-[10px] bg-wine-700/10 text-wine-800 font-bold px-2 py-0.5 rounded-full">Pisado</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function handleNewLog(e) {
+      e.preventDefault();
+      const rawSG = parseFloat(document.getElementById('input-sg').value);
+      const temp = parseFloat(document.getElementById('input-temp').value) || 20;
+      const punched = document.getElementById('check-plunge').checked;
+
+      const correctedSG = calculateCorrectedSG(rawSG, temp);
+      const batch = getActiveBatch();
+
+      const newEntry = {
+        date: new Date().toLocaleDateString(currentLang) + ' ' + new Date().toLocaleTimeString(currentLang, {hour:'2-digit', minute:'2-digit'}),
+        sg: parseFloat(correctedSG.toFixed(3)),
+        temp: temp,
+        punched: punched
+      };
+
+      batch.logs.push(newEntry);
+      saveBatches();
+      document.getElementById('input-sg').value = '';
+      document.getElementById('check-plunge').checked = false;
+      updateDashboard();
+    }
+
+    // Calculators
+    function calculateSO2() {
+      const batch = getActiveBatch();
+      const vol = batch ? batch.volumeLiters : 80;
+      const targetPPM = parseFloat(document.getElementById('calc-so2-target').value) || 35;
+
+      // grams = (Volume * ppm) / 576
+      const gramsKMBS = (vol * targetPPM) / 576;
+      document.getElementById('so2-result').innerText = gramsKMBS.toFixed(1) + ' g';
+
+      // 1 campden tablet provides ~0.44g SO2 => roughly equivalent
+      const tablets = (gramsKMBS / 0.88).toFixed(1);
+      document.getElementById('so2-campden-eq').innerText = `ou ~${tablets} pastilhas Campden esmagadas (para ${vol} L)`;
+    }
+    document.getElementById('calc-so2-target').addEventListener('change', calculateSO2);
+
+    function calculateSugar() {
+      const batch = getActiveBatch();
+      const vol = batch ? batch.volumeLiters : 80;
+      const b1 = parseFloat(document.getElementById('calc-brix-curr').value);
+      const b2 = parseFloat(document.getElementById('calc-brix-target').value);
+
+      if (b2 <= b1) return;
+      // Mass sugar (kg) = (V * (B2 - B1)) / (100 - B2)
+      const kgSugar = (vol * (b2 - b1)) / (100 - b2);
+      document.getElementById('sugar-result').innerText = kgSugar.toFixed(2) + ' kg';
+      document.getElementById('sugar-result-box').classList.remove('hidden');
+    }
+
+    // Retro / Archive
+    function handleSaveRetro(e) {
+      e.preventDefault();
+      const batch = getActiveBatch();
+      batch.review = {
+        score: document.getElementById('retro-score').value,
+        tannin: document.getElementById('retro-tannin').value,
+        acid: document.getElementById('retro-acid').value,
+        notes: document.getElementById('retro-notes').value,
+        date: new Date().toLocaleDateString(currentLang)
+      };
+      saveBatches();
+      renderVintagesList();
+      alert('Memória gravada com sucesso!');
+    }
+
+    function renderVintagesList() {
+      const container = document.getElementById('vintages-list');
+      container.innerHTML = batches.map(b => `
+        <div class="bg-cellar-card rounded-xl p-4 border border-cellar-border shadow-sm">
+          <div class="flex justify-between items-start">
+            <div>
+              <h4 class="font-bold text-stone-900">${b.name}</h4>
+              <span class="text-xs text-stone-500">${b.volumeLiters} Litros • Estilo: ${b.style}</span>
+            </div>
+            <span class="text-sm font-bold text-wine-700">${b.review ? '⭐ ' + b.review.score + '/5' : 'Em curso'}</span>
+          </div>
+          ${b.review ? `
+            <div class="mt-2 text-xs bg-stone-50 p-2.5 rounded-lg border border-stone-200 text-stone-700">
+              <p class="font-semibold">Notas para o próximo ano:</p>
+              <p class="italic mt-0.5">"${b.review.notes || 'Sem observações adicionais.'}"</p>
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    // Batch Management
+    function renderBatchSelect() {
+      const sel = document.getElementById('batch-select');
+      sel.innerHTML = batches.map(b => `
+        <option value="${b.id}" ${b.id === currentBatchId ? 'selected' : ''}>${b.name} (${b.volumeLiters}L)</option>
+      `).join('');
+    }
+
+    function switchBatch(id) {
+      currentBatchId = id;
+      updateDashboard();
+      calculateSO2();
+    }
+
+    function openNewBatchModal() { document.getElementById('modal-batch').classList.remove('hidden'); }
+    function closeNewBatchModal() { document.getElementById('modal-batch').classList.add('hidden'); }
+
+    function handleCreateBatch(e) {
+      e.preventDefault();
+      const newB = {
+        id: 'batch-' + Date.now(),
+        name: document.getElementById('new-batch-name').value,
+        year: new Date().getFullYear(),
+        volumeLiters: parseFloat(document.getElementById('new-batch-vol').value) || 50,
+        initialSG: parseFloat(document.getElementById('new-batch-sg').value) || 1.090,
+        style: document.getElementById('new-batch-style').value,
+        createdAt: new Date().toISOString(),
+        logs: [
+          { date: new Date().toLocaleDateString(currentLang), sg: parseFloat(document.getElementById('new-batch-sg').value) || 1.090, temp: 20, punched: true }
+        ],
+        review: null
+      };
+
+      batches.unshift(newB);
+      currentBatchId = newB.id;
+      saveBatches();
+      closeNewBatchModal();
+      renderBatchSelect();
+      updateDashboard();
+      calculateSO2();
+    }
+
+    // Navigation & Tabs
+    function changeTab(tabId) {
+      ['monitor', 'calculator', 'vintages'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tabId);
+        const navBtn = document.getElementById(`nav-${t}`);
+        if (t === tabId) {
+          navBtn.className = 'flex flex-col items-center text-wine-700 font-bold py-1';
+        } else {
+          navBtn.className = 'flex flex-col items-center text-stone-400 hover:text-stone-700 font-medium py-1';
+        }
+      });
+    }
+
+    // Translation toggle
+    function toggleLang() {
+      currentLang = currentLang === 'pt-PT' ? 'en' : 'pt-PT';
+      document.getElementById('lang-btn').innerText = currentLang === 'pt-PT' ? 'EN' : 'PT';
+      applyTranslations();
+      updateDashboard();
+    }
+
+    function applyTranslations() {
+      const dict = i18n[currentLang];
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) el.innerText = dict[key];
+      });
+      document.getElementById('app-subtitle').innerText = currentLang === 'pt-PT' ? 'Controlo de Fermentação & Prensagem' : 'Fermentation & Press Monitor';
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
