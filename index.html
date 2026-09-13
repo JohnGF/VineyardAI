@@ -52,9 +52,14 @@
       </h1>
       <p id="app-subtitle" class="text-xs text-rose-200">Controlo de Fermentação & Prensagem</p>
     </div>
-    <button onclick="toggleLang()" class="px-3 py-1.5 rounded-lg bg-wine-900/60 border border-rose-300/30 text-xs font-bold uppercase tracking-wider text-rose-100 active:scale-95 transition">
-      <span id="lang-btn">EN</span>
-    </button>
+    <div class="flex items-center gap-2">
+      <button onclick="toggleExpertMode()" class="px-3 py-1.5 rounded-lg bg-stone-700/60 border border-stone-400/30 text-xs font-bold tracking-wider text-stone-200 active:scale-95 transition flex items-center gap-1">
+        <span id="expert-btn">🧪 <span data-i18n="expert_mode_off">Normal</span></span>
+      </button>
+      <button onclick="toggleLang()" class="px-3 py-1.5 rounded-lg bg-wine-900/60 border border-rose-300/30 text-xs font-bold uppercase tracking-wider text-rose-100 active:scale-95 transition">
+        <span id="lang-btn">EN</span>
+      </button>
+    </div>
   </header>
 
   <!-- Main Container -->
@@ -75,6 +80,20 @@
 
     <!-- Tab 1: Monitor / Today's Action (Active Tab) -->
     <div id="tab-monitor" class="space-y-5">
+
+      <!-- Timeline (Intelligent Recalibration) -->
+      <section id="timeline-box" class="bg-cellar-card rounded-2xl p-4 border border-cellar-border shadow-sm">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-stone-500" data-i18n="timeline_title">Cronograma da Cuba</h2>
+        </div>
+        <div class="relative flex items-center justify-between before:content-[''] before:absolute before:left-2 before:right-2 before:top-1/2 before:-translate-y-1/2 before:h-0.5 before:bg-stone-200 before:z-0">
+
+          <!-- Timeline Points Injected via JS -->
+          <div id="timeline-points" class="w-full flex justify-between z-10 relative">
+          </div>
+
+        </div>
+      </section>
       
       <!-- Operational Action Alert -->
       <section id="action-box" class="rounded-2xl p-5 border shadow-sm transition-all">
@@ -127,6 +146,26 @@
       <section class="bg-cellar-card rounded-2xl p-5 border border-cellar-border shadow-sm">
         <h2 class="text-sm font-bold uppercase tracking-wider text-stone-500 mb-3" data-i18n="history_title">Histórico de Fermentação</h2>
         <div id="log-list" class="divide-y divide-stone-100 max-h-60 overflow-y-auto">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- MLF Tracker (Expert) -->
+      <section class="expert-feature hidden bg-cellar-card rounded-2xl p-5 border border-purple-200 shadow-sm relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+        <h2 class="text-lg font-bold text-stone-900 mb-1 flex items-center gap-2">
+          🔬 <span data-i18n="mlf_title">Registo FML (Malolática)</span>
+        </h2>
+        <p class="text-xs text-stone-500 mb-3" data-i18n="mlf_desc">Acompanhe a degradação do Ácido Málico.</p>
+
+        <form onsubmit="handleMLFLog(event)" class="flex gap-2 mb-4">
+          <input type="number" step="0.1" id="input-mlf" placeholder="Málico (g/L)" required class="w-2/3 bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 font-bold text-sm outline-none focus:ring-2 focus:ring-purple-500">
+          <button type="submit" class="w-1/3 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-xl text-sm transition">
+            <span data-i18n="mlf_log_btn">Gravar</span>
+          </button>
+        </form>
+
+        <div id="mlf-list" class="divide-y divide-stone-100 text-xs">
           <!-- Populated by JS -->
         </div>
       </section>
@@ -183,6 +222,61 @@
           <div id="sugar-result" class="text-xl font-black text-amber-900">-- kg</div>
         </div>
       </section>
+
+      <!-- YAN Nutrition (Expert) -->
+      <section class="expert-feature hidden bg-cellar-card rounded-2xl p-5 border border-amber-200 shadow-sm relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+        <h2 class="text-lg font-bold text-stone-900 mb-1 flex items-center gap-2">
+          🔬 <span data-i18n="yan_title">Nutrição YAN (Fermaid)</span>
+        </h2>
+        <p class="text-xs text-stone-500 mb-3" data-i18n="yan_desc">Calcula nutrientes para evitar paragens de fermentação.</p>
+
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="yan_target">Alvo YAN (mg/L)</label>
+            <input type="number" id="calc-yan-target" value="200" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-center font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="yan_current">YAN Atual (mg/L)</label>
+            <input type="number" id="calc-yan-curr" value="100" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-center font-bold">
+          </div>
+        </div>
+
+        <button onclick="calculateYAN()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm transition">
+          <span data-i18n="calc_yan_btn">Calcular</span>
+        </button>
+
+        <div id="yan-result-box" class="mt-3 hidden bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+          <span class="text-xs font-bold text-amber-800 uppercase" data-i18n="yan_needed">Dose de Fermaid O (g):</span>
+          <div id="yan-result" class="text-xl font-black text-amber-900 mt-1">-- g</div>
+        </div>
+      </section>
+
+      <!-- Acidity Adjustment (Expert) -->
+      <section class="expert-feature hidden bg-cellar-card rounded-2xl p-5 border border-purple-200 shadow-sm relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+        <h2 class="text-lg font-bold text-stone-900 mb-1 flex items-center gap-2">
+          🔬 <span data-i18n="acid_title">Acidez (Ácido Tartárico)</span>
+        </h2>
+        <p class="text-xs text-stone-500 mb-3" data-i18n="acid_desc">Correção de pH / Acidez Total.</p>
+
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="acid_increase">Aumentar em (g/L)</label>
+            <input type="number" id="calc-acid-inc" step="0.5" value="1.0" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-center font-bold">
+          </div>
+        </div>
+
+        <button onclick="calculateAcidity()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-sm transition">
+          <span data-i18n="calc_acid_btn">Calcular</span>
+        </button>
+
+        <div id="acid-result-box" class="mt-3 hidden bg-purple-50 border border-purple-200 rounded-xl p-3 text-center">
+          <span class="text-xs font-bold text-purple-800 uppercase" data-i18n="acid_needed">Ácido Tartárico (g):</span>
+          <div id="acid-result" class="text-xl font-black text-purple-900 mt-1">-- g</div>
+        </div>
+      </section>
+
     </div>
 
     <!-- Tab 3: Vintage Retrospective & Memory (Histórico Anual) -->
@@ -279,6 +373,17 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="batch_date">Data de Início</label>
+            <input type="date" id="new-batch-date" required class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 font-medium text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="batch_kilos">Uvas (Kg)</label>
+            <input type="number" id="new-batch-kilos" placeholder="Ex: 150" class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 font-bold text-center" oninput="estimateVolume()">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
             <label class="block text-xs font-bold text-stone-700 mb-1" data-i18n="batch_volume">Volume Mosto (L)</label>
             <input type="number" id="new-batch-vol" value="100" required class="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 font-bold text-center">
           </div>
@@ -298,6 +403,8 @@
 
   <!-- Application Logic -->
   <script>
+    let expertMode = false;
+
     // I18N DICTIONARY: Defaults to pt-PT, English secondary
     const i18n = {
       'pt-PT': {
@@ -321,7 +428,18 @@
         curr_brix: 'Grau Atual (°Brix)',
         target_brix: 'Grau Alvo (°Brix)',
         calc_btn: 'Calcular Açúcar Necessário',
+        calc_yan_btn: 'Calcular Fermaid',
+        calc_acid_btn: 'Calcular Acidez',
         sugar_needed: 'Açúcar a dissolver em mosto morno:',
+        yan_title: 'Nutrição YAN (Fermaid)',
+        yan_desc: 'Calcula nutrientes para evitar paragens de fermentação.',
+        yan_target: 'Alvo YAN (mg/L)',
+        yan_current: 'YAN Atual (mg/L)',
+        yan_needed: 'Dose Fermaid O (g):',
+        acid_title: 'Acidez (Ácido Tartárico)',
+        acid_desc: 'Correção de pH / Acidez Total.',
+        acid_increase: 'Aumentar TA em (g/L)',
+        acid_needed: 'Ácido Tartárico (g):',
         archive_title: 'Caderno de Memória da Adega',
         archive_desc: 'Avalie a qualidade do vinho pronto para comparar o que correu bem nos anos anteriores.',
         review_score: 'Nota Global do Vinho (1 a 5)',
@@ -344,10 +462,26 @@
         batch_style: 'Estilo Pretendido',
         style_palhete: 'Palhete Tradicional (Prensagem cedo 2-4 dias)',
         style_tinto: 'Tinto de Curtimenta (Até secar na casca)',
+        batch_date: 'Data de Início',
+        batch_kilos: 'Uvas (Kg)',
         batch_volume: 'Volume Mosto (L)',
+        timeline_title: 'Cronograma da Cuba',
+        timeline_crush: 'Esmagamento',
+        timeline_ferment: 'Fermentação',
+        timeline_press: 'Prensagem',
+        timeline_rack: 'Trasfega',
+        mlf_title: 'Registo FML (Malolática)',
+        mlf_desc: 'Acompanhe a degradação do Ácido Málico.',
+        mlf_log_btn: 'Gravar',
         batch_initial_sg: 'Densidade Inicial',
         cancel: 'Cancelar',
         confirm: 'Criar',
+        no_batches: 'Nenhuma Cuba',
+        empty_title: 'Bem-vindo à Adega Fácil',
+        no_mlf_logs: 'Sem registos de FML.',
+        empty_desc: 'Comece por criar a sua primeira cuba para registar a vindima.',
+        expert_mode_off: 'Normal',
+        expert_mode_on: 'Perito',
         action_ready_press_title: '⚠️ ALTURA DE PRENSAR!',
         action_ready_press_palhete: 'A densidade baixou para a janela de ouro do Palhete. Separe o líquido das cascas e transfira para garrafões ou cubas fechadas com batoque/vedante de água.',
         action_active_title: '🔥 FERMENTAÇÃO MUITO ATIVA',
@@ -376,7 +510,18 @@
         curr_brix: 'Current (°Brix)',
         target_brix: 'Target (°Brix)',
         calc_btn: 'Calculate Required Sugar',
+        calc_yan_btn: 'Calculate Fermaid',
+        calc_acid_btn: 'Calculate Acid',
         sugar_needed: 'Sugar to dissolve in warm must:',
+        yan_title: 'YAN Nutrition (Fermaid)',
+        yan_desc: 'Calculates complex nutrients to prevent stuck fermentations.',
+        yan_target: 'Target YAN (mg/L)',
+        yan_current: 'Current YAN (mg/L)',
+        yan_needed: 'Fermaid O Dose (g):',
+        acid_title: 'Acidity (Tartaric Acid)',
+        acid_desc: 'Correct pH and Titratable Acidity (TA).',
+        acid_increase: 'Increase TA by (g/L)',
+        acid_needed: 'Tartaric Acid (g):',
         archive_title: 'Cellar Retrospective Logbook',
         archive_desc: 'Score and evaluate finished wine to guide decisions next year.',
         review_score: 'Overall Rating (1 to 5)',
@@ -399,10 +544,26 @@
         batch_style: 'Target Style',
         style_palhete: 'Traditional Palhete (Press off early 2-4 days)',
         style_tinto: 'Red Maceration (Ferment dry on skins)',
+        batch_date: 'Start Date',
+        batch_kilos: 'Grapes (Kg)',
         batch_volume: 'Must Volume (L)',
+        timeline_title: 'Batch Timeline',
+        timeline_crush: 'Crush',
+        timeline_ferment: 'Fermentation',
+        timeline_press: 'Pressing',
+        timeline_rack: 'Racking',
+        mlf_title: 'MLF Tracker (Malolactic)',
+        mlf_desc: 'Track Malic Acid degradation over time.',
+        mlf_log_btn: 'Log',
         batch_initial_sg: 'Initial Gravity',
         cancel: 'Cancel',
         confirm: 'Create',
+        no_batches: 'No Batches',
+        empty_title: 'Welcome to Adega Fácil',
+        no_mlf_logs: 'No MLF logs yet.',
+        empty_desc: 'Start by creating your first tub/tank for the harvest.',
+        expert_mode_off: 'Basic',
+        expert_mode_on: 'Expert',
         action_ready_press_title: '⚠️ TIME TO PRESS SOLIDS!',
         action_ready_press_palhete: 'Gravity has reached the target window for Palhete. Press liquid off grape skins now and finish in closed carboy under airlock.',
         action_active_title: '🔥 HIGH FERMENTATION ACTIVITY',
@@ -425,26 +586,10 @@
         try { batches = JSON.parse(saved); } catch(e) { batches = []; }
       }
 
-      if (!batches || batches.length === 0) {
-        // Seed default 2026 Palhete harvest
-        const defaultBatch = {
-          id: 'batch-' + Date.now(),
-          name: 'Vindima 2026 - Mistura Palhete',
-          year: 2026,
-          volumeLiters: 80,
-          initialSG: 1.092,
-          style: 'palhete',
-          createdAt: new Date().toISOString(),
-          logs: [
-            { date: new Date().toLocaleDateString(currentLang), sg: 1.092, temp: 21, punched: true }
-          ],
-          review: null
-        };
-        batches = [defaultBatch];
-        saveBatches();
+      if (batches && batches.length > 0 && !currentBatchId) {
+        currentBatchId = batches[0].id;
       }
 
-      currentBatchId = batches[0].id;
       applyTranslations();
       renderBatchSelect();
       updateDashboard();
@@ -456,6 +601,7 @@
     }
 
     function getActiveBatch() {
+      if (!batches || batches.length === 0) return null;
       return batches.find(b => b.id === currentBatchId) || batches[0];
     }
 
@@ -470,13 +616,182 @@
       return ((initialSG - currentSG) * 131.25).toFixed(1);
     }
 
-    // UI Updates
-    function updateDashboard() {
+    // Timeline Calculations
+    function calculateTimeline(batch, currentSG, logs) {
+      const startDate = new Date(batch.startDate || batch.createdAt);
+
+      const tl = {
+        crush: startDate.toLocaleDateString(currentLang, {day:'2-digit', month:'short'}),
+        press: '--',
+        rack: '--',
+        progress: 0,
+        activeStep: 0
+      };
+
+      // Recalibrate based on logs
+      if (logs.length > 1 && currentSG < batch.initialSG) {
+        // Calculate daily drop rate
+        const firstLog = logs[0];
+        const lastLog = logs[logs.length-1];
+
+        // Use parseable dates if possible, else just assume 1 day between logs roughly if same date
+        const t1 = new Date(batch.startDate || batch.createdAt).getTime();
+
+        // Simple heuristic: 0.010 drop per day average if no clear time deltas
+        const daysPassed = Math.max(1, (new Date().getTime() - t1) / (1000 * 3600 * 24));
+        const totalDrop = batch.initialSG - currentSG;
+        const ratePerDay = totalDrop / daysPassed;
+
+        if (ratePerDay > 0) {
+          const targetPressSG = batch.style === 'palhete' ? 1.030 : 0.998;
+          if (currentSG > targetPressSG) {
+            const daysToPress = (currentSG - targetPressSG) / ratePerDay;
+            const estPressDate = new Date();
+            estPressDate.setDate(estPressDate.getDate() + daysToPress);
+            tl.press = estPressDate.toLocaleDateString(currentLang, {day:'2-digit', month:'short'});
+            tl.activeStep = 1; // Fermenting
+            tl.progress = 25 + (35 * ((batch.initialSG - currentSG) / (batch.initialSG - targetPressSG)));
+          } else {
+            tl.press = 'Feito';
+            tl.activeStep = 2; // Pressed
+            tl.progress = 65;
+
+            // Est rack date 14 days after pressing
+            if (currentSG <= 0.998) {
+               const rackDate = new Date();
+               rackDate.setDate(rackDate.getDate() + 14);
+               tl.rack = rackDate.toLocaleDateString(currentLang, {day:'2-digit', month:'short'});
+               tl.progress = 85;
+            }
+          }
+        }
+      } else {
+        // Fallbacks
+        const pDate = new Date(startDate);
+        pDate.setDate(pDate.getDate() + (batch.style === 'palhete' ? 3 : 7));
+        tl.press = pDate.toLocaleDateString(currentLang, {day:'2-digit', month:'short'});
+        tl.activeStep = 1;
+        tl.progress = 25;
+      }
+
+      if (currentSG <= 0.995) {
+        tl.activeStep = 3; // Racking time
+        tl.progress = 100;
+        tl.rack = 'Feito';
+      }
+
+      return tl;
+    }
+
+    function renderTimeline(batch, currentSG, logs) {
+      const container = document.getElementById('timeline-points');
+      if (!container) return;
+
+      const t = i18n[currentLang];
+      const tl = calculateTimeline(batch, currentSG, logs);
+
+      const steps = [
+        { icon: '🍇', label: t.timeline_crush, date: tl.crush, active: tl.activeStep >= 0 },
+        { icon: '🫧', label: t.timeline_ferment, date: tl.activeStep === 1 ? 'Agora' : '', active: tl.activeStep >= 1 },
+        { icon: '🧺', label: t.timeline_press, date: tl.press, active: tl.activeStep >= 2 },
+        { icon: '🍷', label: t.timeline_rack, date: tl.rack, active: tl.activeStep >= 3 }
+      ];
+
+      container.innerHTML = steps.map((s, i) => `
+        <div class="flex flex-col items-center group">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-sm transition-all duration-300 ${
+            s.active
+              ? (i === tl.activeStep ? 'bg-wine-700 text-white ring-4 ring-wine-700/20 scale-110' : 'bg-wine-800 text-white')
+              : 'bg-stone-100 text-stone-400 border-2 border-stone-200'
+          }">
+            ${s.icon}
+          </div>
+          <span class="text-[10px] font-bold mt-1.5 ${i === tl.activeStep ? 'text-wine-700' : (s.active ? 'text-stone-700' : 'text-stone-400')}">${s.label}</span>
+          <span class="text-[9px] text-stone-400 mt-0.5">${s.date}</span>
+        </div>
+      `).join('');
+    }
+
+        function handleMLFLog(e) {
+      e.preventDefault();
       const batch = getActiveBatch();
       if (!batch) return;
 
+      const malic = parseFloat(document.getElementById('input-mlf').value);
+      if (!batch.mlfLogs) batch.mlfLogs = [];
+
+      batch.mlfLogs.push({
+        date: new Date().toLocaleDateString(currentLang),
+        malic: malic
+      });
+
+      saveBatches();
+      document.getElementById('input-mlf').value = '';
+      updateDashboard();
+    }
+
+    function renderMLFHistory(batch) {
+      const container = document.getElementById('mlf-list');
+      if (!container) return;
+
+      if (!batch.mlfLogs || batch.mlfLogs.length === 0) {
+        container.innerHTML = '<p class="text-stone-400 py-2 italic text-center text-[11px]" data-i18n="no_mlf_logs">' + (i18n[currentLang].no_mlf_logs) + '</p>';
+        return;
+      }
+
+      container.innerHTML = [...batch.mlfLogs].reverse().map(l => `
+        <div class="py-2 flex justify-between items-center">
+          <span class="text-stone-400">${l.date}</span>
+          <span class="font-bold ${l.malic <= 0.3 ? 'text-emerald-600' : 'text-stone-800'}">${l.malic.toFixed(1)} g/L ${l.malic <= 0.3 ? '✅' : ''}</span>
+        </div>
+      `).join('');
+    }
+
+    // UI Updates
+    function updateDashboard() {
+      const batch = getActiveBatch();
+
+      const tabMonitor = document.getElementById('tab-monitor');
+      let emptyState = document.getElementById('empty-state');
+      const currentActiveTab = ['monitor', 'calculator', 'vintages'].find(t => !document.getElementById(`tab-${t}`).classList.contains('hidden')) || 'monitor';
+
+      if (!batch) {
+        if (!emptyState) {
+          const emptyDiv = document.createElement('div');
+          emptyDiv.id = 'empty-state';
+          emptyDiv.className = 'bg-cellar-card rounded-2xl p-8 border border-cellar-border shadow-sm text-center space-y-4';
+          emptyDiv.innerHTML = `
+            <div class="text-4xl mb-2">🍇</div>
+            <h2 class="text-xl font-bold text-stone-900" data-i18n="empty_title">Bem-vindo à Adega Fácil</h2>
+            <p class="text-sm text-stone-500" data-i18n="empty_desc">Comece por criar a sua primeira cuba para registar a vindima.</p>
+            <button onclick="openNewBatchModal()" class="mt-4 bg-wine-700 hover:bg-wine-800 text-white font-bold py-3 px-6 rounded-xl shadow transition text-sm inline-flex items-center gap-2">
+              + <span data-i18n="new_batch">Nova Cuba</span>
+            </button>
+          `;
+          tabMonitor.parentNode.insertBefore(emptyDiv, tabMonitor);
+          emptyState = emptyDiv;
+        }
+
+        if (currentActiveTab === 'monitor') {
+            emptyState.classList.remove('hidden');
+        } else {
+            emptyState.classList.add('hidden');
+        }
+        tabMonitor.classList.add('hidden');
+        applyTranslations();
+        return;
+      } else {
+        if (emptyState) emptyState.classList.add('hidden');
+        if (currentActiveTab === 'monitor') {
+          tabMonitor.classList.remove('hidden');
+        }
+      }
+
       const latestLog = batch.logs && batch.logs.length > 0 ? batch.logs[batch.logs.length - 1] : null;
       const currentSG = latestLog ? latestLog.sg : batch.initialSG;
+
+      // Timeline
+      renderTimeline(batch, currentSG, batch.logs || []);
 
       // Stats
       document.getElementById('stat-sg').innerText = currentSG.toFixed(3);
@@ -494,6 +809,7 @@
 
       // Render Logs
       renderLogHistory(batch);
+      renderMLFHistory(batch);
 
       // Render Archival/Vintages tab
       renderVintagesList();
@@ -614,6 +930,37 @@
       document.getElementById('sugar-result-box').classList.remove('hidden');
     }
 
+    function calculateYAN() {
+      const batch = getActiveBatch();
+      const vol = batch ? batch.volumeLiters : 100;
+      const target = parseFloat(document.getElementById('calc-yan-target').value);
+      const current = parseFloat(document.getElementById('calc-yan-curr').value);
+
+      if (target <= current) return;
+      const deficit = target - current;
+      // Fermaid O provides roughly 40ppm YAN per 10g/hL (which is 10g/100L = 0.1g/L)
+      // So 1g/L Fermaid O gives 400ppm YAN.
+      // g/L needed = deficit / 400
+      const gPerL = deficit / 400;
+      const totalGrams = gPerL * vol;
+
+      document.getElementById('yan-result').innerText = totalGrams.toFixed(1) + ' g';
+      document.getElementById('yan-result-box').classList.remove('hidden');
+    }
+
+    function calculateAcidity() {
+      const batch = getActiveBatch();
+      const vol = batch ? batch.volumeLiters : 100;
+      const inc = parseFloat(document.getElementById('calc-acid-inc').value);
+
+      if (inc <= 0) return;
+      // 1 g/L of Tartaric acid increases TA by 1 g/L.
+      const totalGrams = inc * vol;
+
+      document.getElementById('acid-result').innerText = totalGrams.toFixed(1) + ' g';
+      document.getElementById('acid-result-box').classList.remove('hidden');
+    }
+
     // Retro / Archive
     function handleSaveRetro(e) {
       e.preventDefault();
@@ -654,9 +1001,13 @@
     // Batch Management
     function renderBatchSelect() {
       const sel = document.getElementById('batch-select');
-      sel.innerHTML = batches.map(b => `
-        <option value="${b.id}" ${b.id === currentBatchId ? 'selected' : ''}>${b.name} (${b.volumeLiters}L)</option>
-      `).join('');
+      if (!batches || batches.length === 0) {
+        sel.innerHTML = `<option value="" disabled selected>${i18n[currentLang].no_batches || 'Nenhuma Cuba'}</option>`;
+      } else {
+        sel.innerHTML = batches.map(b => `
+          <option value="${b.id}" ${b.id === currentBatchId ? 'selected' : ''}>${b.name} (${b.volumeLiters}L)</option>
+        `).join('');
+      }
     }
 
     function switchBatch(id) {
@@ -665,23 +1016,39 @@
       calculateSO2();
     }
 
-    function openNewBatchModal() { document.getElementById('modal-batch').classList.remove('hidden'); }
+    function openNewBatchModal() {
+      document.getElementById('new-batch-date').valueAsDate = new Date();
+      document.getElementById('modal-batch').classList.remove('hidden');
+    }
     function closeNewBatchModal() { document.getElementById('modal-batch').classList.add('hidden'); }
+
+    function estimateVolume() {
+      const kilos = parseFloat(document.getElementById('new-batch-kilos').value) || 0;
+      if (kilos > 0) {
+        // Rough estimate: 70 liters per 100 kg
+        document.getElementById('new-batch-vol').value = Math.round(kilos * 0.7);
+      }
+    }
 
     function handleCreateBatch(e) {
       e.preventDefault();
+      const startDateStr = document.getElementById('new-batch-date').value;
+      const startDate = startDateStr ? new Date(startDateStr) : new Date();
+
       const newB = {
         id: 'batch-' + Date.now(),
         name: document.getElementById('new-batch-name').value,
-        year: new Date().getFullYear(),
+        year: startDate.getFullYear(),
+        kilos: parseFloat(document.getElementById('new-batch-kilos').value) || null,
         volumeLiters: parseFloat(document.getElementById('new-batch-vol').value) || 50,
         initialSG: parseFloat(document.getElementById('new-batch-sg').value) || 1.090,
         style: document.getElementById('new-batch-style').value,
-        createdAt: new Date().toISOString(),
+        createdAt: startDate.toISOString(),
         logs: [
-          { date: new Date().toLocaleDateString(currentLang), sg: parseFloat(document.getElementById('new-batch-sg').value) || 1.090, temp: 20, punched: true }
+          { date: startDate.toLocaleDateString(currentLang), sg: parseFloat(document.getElementById('new-batch-sg').value) || 1.090, temp: 20, punched: true }
         ],
-        review: null
+        review: null,
+        startDate: startDate.toISOString()
       };
 
       batches.unshift(newB);
@@ -695,8 +1062,21 @@
 
     // Navigation & Tabs
     function changeTab(tabId) {
+      const batch = getActiveBatch();
+      const emptyState = document.getElementById('empty-state');
+
       ['monitor', 'calculator', 'vintages'].forEach(t => {
-        document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tabId);
+        const tabEl = document.getElementById(`tab-${t}`);
+        if (t === tabId) {
+            // Only show tab if there's a batch, or if we're not on monitor tab
+            if (batch || t !== 'monitor') {
+               tabEl.classList.remove('hidden');
+            } else {
+               tabEl.classList.add('hidden');
+            }
+        } else {
+            tabEl.classList.add('hidden');
+        }
         const navBtn = document.getElementById(`nav-${t}`);
         if (t === tabId) {
           navBtn.className = 'flex flex-col items-center text-wine-700 font-bold py-1';
@@ -704,9 +1084,41 @@
           navBtn.className = 'flex flex-col items-center text-stone-400 hover:text-stone-700 font-medium py-1';
         }
       });
+
+      if (!batch && emptyState) {
+          if (tabId === 'monitor') {
+              emptyState.classList.remove('hidden');
+          } else {
+              emptyState.classList.add('hidden');
+          }
+      }
     }
 
     // Translation toggle
+    function toggleExpertMode() {
+      expertMode = !expertMode;
+      const btnText = document.getElementById('expert-btn');
+      const btnParent = btnText.parentElement;
+
+      if (expertMode) {
+        btnText.innerHTML = `🔬 <span data-i18n="expert_mode_on">${i18n[currentLang].expert_mode_on}</span>`;
+        btnParent.classList.remove('bg-stone-700/60', 'text-stone-200', 'border-stone-400/30');
+        btnParent.classList.add('bg-amber-600/80', 'text-white', 'border-amber-400/50');
+      } else {
+        btnText.innerHTML = `🧪 <span data-i18n="expert_mode_off">${i18n[currentLang].expert_mode_off}</span>`;
+        btnParent.classList.remove('bg-amber-600/80', 'text-white', 'border-amber-400/50');
+        btnParent.classList.add('bg-stone-700/60', 'text-stone-200', 'border-stone-400/30');
+      }
+
+      applyTranslations();
+
+      // Update visibility of expert features
+      document.querySelectorAll('.expert-feature').forEach(el => {
+        if (expertMode) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+      });
+    }
+
     function toggleLang() {
       currentLang = currentLang === 'pt-PT' ? 'en' : 'pt-PT';
       document.getElementById('lang-btn').innerText = currentLang === 'pt-PT' ? 'EN' : 'PT';
